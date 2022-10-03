@@ -152,13 +152,6 @@ macro_rules! newty {
     (@map $(#[$($meta:meta),*])* $visibility:vis $name:ident($value:ty)[$key:ty]
      $(impl { $($method:item)* })?) => {
 	$(#[$($meta),*])*
-	#[cfg(feature = "serde")]
-	#[derive(Debug, Default, PartialEq, Eq)]
-	#[derive(serde::Serialize, serde::Deserialize)]
-	$visibility struct $name(std::collections::HashMap<$key, $value>);
-	
-	$(#[$($meta),*])*
-	#[cfg(not(feature = "serde"))]
 	#[derive(Debug, Default, PartialEq, Eq)]
 	$visibility struct $name(std::collections::HashMap<$key, $value>);
 
@@ -236,16 +229,9 @@ macro_rules! newty {
 
     (@set $(#[$($meta:meta),*])* $visibility:vis $name:ident
      [$indexer:ty :getter $getter:expr]) => {	
-	#[cfg(feature = "serde")]
 	$(#[$($meta),*])*
 	#[derive(Debug)]
 	#[derive(serde::Serialize, serde::Deserialize)]
-	#[allow(missing_docs)]
-	$visibility struct $name($crate::Set);
-
-	#[cfg(not(feature = "serde"))]
-	$(#[$($meta),*])*
-	#[derive(Debug)]
 	#[allow(missing_docs)]
 	$visibility struct $name($crate::Set);
 
@@ -370,14 +356,8 @@ macro_rules! newty {
     
     (@id $(#[$($meta:meta),*])* $visibility:vis $name:ident
      ($interior_type:ty) $(impl { $($method:item)* })?) => {
-	#[cfg(feature = "serde")]
 	$(#[$($meta),*])*
 	#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-	$visibility struct $name(pub $interior_type);
-
-	#[cfg(not(feature = "serde"))]
-	$(#[$($meta),*])*
-	#[derive(Debug, Clone)]
 	$visibility struct $name(pub $interior_type);
 
 	$(impl $name {
