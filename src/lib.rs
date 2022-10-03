@@ -493,6 +493,9 @@ macro_rules! newty {
 
 #[macro_export]
 macro_rules! nvec {
+    ($nvec:tt $c:expr ; $nb:expr) => {
+	$nvec::from(vec![$c ; $crate::Wrapper::dewrap_into($nb)])
+    };
     ($nvec:tt $($rest:tt)*) => {
 	$nvec::from(vec![$($rest)*])
     };
