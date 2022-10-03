@@ -62,7 +62,6 @@ mod tests {
 	assert_eq!(b[i], 3);
     }
 
-    #[cfg(feature="set")]
     #[test]
     fn set_newtype() {
 	newty! {
@@ -153,15 +152,22 @@ macro_rules! newty {
     (@map $(#[$($meta:meta),*])* $visibility:vis $name:ident($value:ty)[$key:ty]
      $(impl { $($method:item)* })?) => {
 	$(#[$($meta),*])*
+	#[cfg(feature = "serde")]
 	#[derive(Debug, Default, PartialEq, Eq)]
-	$visibility struct $name(::hashbrown::HashMap<$key, $value>);
+	#[derive(serde::Serialize, serde::Deserialize)]
+	$visibility struct $name(std::collections::HashMap<$key, $value>);
+	
+	$(#[$($meta),*])*
+	#[cfg(not(feature = "serde"))]
+	#[derive(Debug, Default, PartialEq, Eq)]
+	$visibility struct $name(std::collections::HashMap<$key, $value>);
 
 	impl $name {
 	    #![allow(dead_code)]
 	    
 	    #[inline]
 	    $visibility fn new() -> Self {
-		Self(::hashbrown::HashMap::new())
+		Self(std::collections::HashMap::new())
 	    }
 
 	    #[inline]
@@ -175,12 +181,12 @@ macro_rules! newty {
 	    }
 
 	    #[inline]
-	    $visibility fn iter(&self) -> ::hashbrown::hash_map::Iter<'_, $key, $value> {
+	    $visibility fn iter(&self) -> std::collections::hash_map::Iter<'_, $key, $value> {
 		self.0.iter()
 	    }
 
 	    #[inline]
-	    $visibility fn iter_mut(&mut self) -> ::hashbrown::hash_map::IterMut<'_, $key, $value> {
+	    $visibility fn iter_mut(&mut self) -> std::collections::hash_map::IterMut<'_, $key, $value> {
 		self.0.iter_mut()
 	    }
 
@@ -195,7 +201,7 @@ macro_rules! newty {
 	    }
 
 	    #[inline]
-	    $visibility fn get(&self, key: $key) -> Option<$value> {
+	    $visibility fn get(&self, key: &$key) -> Option<&$value> {
 		self.0.get(key)
 	    }
 	}
@@ -204,13 +210,13 @@ macro_rules! newty {
 	    $($method)*
 	})?
 
-	impl From<::hashbrown::HashMap<$key, $value>> for $name {
+	impl From<std::collections::HashMap<$key, $value>> for $name {
 	    fn from(hm: HashMap<$key, $value>) -> Self {
 		Self(hm)
 	    }
 	}
 
-	impl ::std::ops::Index<$key> for $name {
+	impl std::ops::Index<$key> for $name {
 	    type Output = $value;
 
 	    fn index(&self, index: $key) -> &Self::Output {
@@ -230,21 +236,24 @@ macro_rules! newty {
 
     (@set $(#[$($meta:meta),*])* $visibility:vis $name:ident
      [$indexer:ty :getter $getter:expr]) => {	
-	#[cfg(feature="serde")]
+	#[cfg(feature = "serde")]
 	$(#[$($meta),*])*
 	#[derive(Debug)]
-	#[derive(::serde::Serialize, ::serde::Deserialize)]
+	#[derive(serde::Serialize, serde::Deserialize)]
 	#[allow(missing_docs)]
-	$visibility struct $name(fixedbitset::FixedBitSet);
+	$visibility struct $name($crate::Set);
 
-	#[cfg(not(feature="serde"))]
+	#[cfg(not(feature = "serde"))]
 	$(#[$($meta),*])*
 	#[derive(Debug)]
 	#[allow(missing_docs)]
-	$visibility struct $name(fixedbitset::FixedBitSet);
+	$visibility struct $name($crate::Set);
 
 	impl std::fmt::Display for $name {
-	    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+	    fn fmt(
+		&self,
+		f: &mut std::fmt::Formatter<'_>
+	    ) -> std::fmt::Result {
 		self.0.fmt(f)
 	    }
 	}
@@ -253,11 +262,11 @@ macro_rules! newty {
 	    #![allow(dead_code)]
 	    
 	    $visibility const fn new() -> Self {
-		Self(::fixedbitset::FixedBitSet::new())
+		Self($crate::Set::new())
 	    }
 
 	    $visibility fn from_vec(size: $indexer, vec: Vec<$indexer>) -> Self {
-		let mut set = ::fixedbitset::FixedBitSet::with_capacity($getter(size));
+		let mut set = $crate::Set::with_capacity($getter(size));
 		for i in vec {
 		    set.insert($getter(i));
 		}
@@ -266,12 +275,12 @@ macro_rules! newty {
 
 	    #[inline]
 	    $visibility fn with_capacity(size: $indexer) -> Self {
-		Self(::fixedbitset::FixedBitSet::with_capacity($getter(size)))
+		Self($crate::Set::with_capacity($getter(size)))
 	    }
 
 	    #[inline]
 	    $visibility fn with_raw_capacity(size: usize) -> Self {
-		Self(::fixedbitset::FixedBitSet::with_capacity(size))
+		Self($crate::Set::with_capacity(size))
 	    }
 
 	    #[inline]
@@ -297,21 +306,21 @@ macro_rules! newty {
 	    #[inline]
 	    $visibility fn set_range(
 		&mut self,
-		::std::ops::Range { start, end }: ::std::ops::Range<$indexer>,
+		std::ops::Range { start, end }: std::ops::Range<$indexer>,
 		enabled: bool
 	    ) {
 		self.0.set_range($getter(start)..$getter(end), enabled)
 	    }
 
 	    #[inline]
-	    $visibility fn insert_range(&mut self, range: ::std::ops::Range<$indexer>) {
+	    $visibility fn insert_range(&mut self, range: std::ops::Range<$indexer>) {
 		self.set_range(range, true)
 	    }
 
 	    #[inline]
 	    $visibility fn toggle_range(
 		&mut self,
-		::std::ops::Range { start, end }: ::std::ops::Range<$indexer>
+		std::ops::Range { start, end }: std::ops::Range<$indexer>
 	    ) {
 		self.0.toggle_range($getter(start)..$getter(end))
 	    }
@@ -361,12 +370,12 @@ macro_rules! newty {
     
     (@id $(#[$($meta:meta),*])* $visibility:vis $name:ident
      ($interior_type:ty) $(impl { $($method:item)* })?) => {
-	#[cfg(feature="serde")]
+	#[cfg(feature = "serde")]
 	$(#[$($meta),*])*
-	#[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize)]
+	#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 	$visibility struct $name(pub $interior_type);
 
-	#[cfg(not(feature="serde"))]
+	#[cfg(not(feature = "serde"))]
 	$(#[$($meta),*])*
 	#[derive(Debug, Clone)]
 	$visibility struct $name(pub $interior_type);
@@ -393,11 +402,11 @@ macro_rules! newty {
 	    }
 	}
 
-	impl ::std::fmt::Display for $name {
+	impl std::fmt::Display for $name {
 	    fn fmt(
 		&self,
-		f: &mut ::std::fmt::Formatter<'_>
-	    ) -> ::std::result::Result<(), ::std::fmt::Error>
+		f: &mut std::fmt::Formatter<'_>
+	    ) -> std::result::Result<(), std::fmt::Error>
 	    {
 		write!(f, "{}", self.0)
 	    }
@@ -483,6 +492,12 @@ macro_rules! newty {
 		&self.0[$getter(index)]
 	    }
 	}
+	
+	impl std::ops::IndexMut<$indexer> for $name {
+	    fn index_mut(&mut self, index: $indexer) -> &mut Self::Output {
+		&mut self.0[$getter(index)]
+	    }
+	}
     };
 
     ($(#[$($meta:meta),*])* $visibility:vis $newtype:ident $name:ident
@@ -500,6 +515,9 @@ macro_rules! nvec {
 	$nvec::from(vec![$($rest)*])
     };
 }
+
+
+pub type Set = fixedbitset::FixedBitSet;
 
 pub trait Wrapper: From<Self::Wrapped> {
     type Wrapped;
