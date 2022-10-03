@@ -2,7 +2,8 @@
 name = "newty"
 version = "0.1.0"
 edition = "2021"
-
+description = "A newtype utility crate. Yet to be stabilized."
+license = "MIT OR GPL-3.0-or-later"
 
 [dependencies]
 fixedbitset = { version = "0.4.2", optional = true }
