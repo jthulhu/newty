@@ -349,6 +349,7 @@ macro_rules! newty {
 	    @id
 	    $(#[$($meta),*])*
 	    #[derive(Copy, PartialEq, Eq, Hash)]
+	    #[allow(missing_docs)]
 	    $visibility $name(usize)
 	    $(impl { $($method)* })?
 	}
@@ -358,6 +359,7 @@ macro_rules! newty {
      ($interior_type:ty) $(impl { $($method:item)* })?) => {
 	$(#[$($meta),*])*
 	#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+	#[allow(missing_docs)]
 	$visibility struct $name(pub $interior_type);
 
 	$(impl $name {
